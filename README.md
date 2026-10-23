@@ -36,12 +36,14 @@ The **University Course and Student Management Database** (`SchoolDB`) provides 
 
 ### 3.1 Entity Relationship Diagram (ERD)
 
+![University Database ERD](docs/database/university-database-erd.png)
+
 ```mermaid
 erDiagram
     Departments ||--o{ Instructors : "employs"
     Departments ||--o{ Students : "major department"
     Departments ||--o{ Courses : "offers"
-    Instructors ||--o| Departments : "heads (HeadInstructorID)"
+    Instructors ||--o| Departments : "heads (HeadOfDepartmentID)"
     Instructors ||--o{ CourseSections : "teaches"
     Courses ||--o{ CoursePrerequisites : "has prerequisite"
     Courses ||--o{ CoursePrerequisites : "is prerequisite for"
@@ -51,17 +53,15 @@ erDiagram
     CourseSections ||--o{ Enrollments : "class roster"
     GradeScales ||--o{ CoursePrerequisites : "minimum grade"
     GradeScales ||--o{ Enrollments : "grade awarded"
-    Students ..o{ EnrollmentAuditLog : "audited student"
-    CourseSections ..o{ EnrollmentAuditLog : "audited section"
 
     Departments {
         INT DepartmentID PK
-        CHAR(4) DepartmentCode UK
-        VARCHAR(100) DepartmentName
-        INT HeadInstructorID FK
-        DECIMAL(12_2) Budget
-        NVARCHAR(100) BuildingOffice
-        DATETIME2 CreatedAt
+        VARCHAR(10) DepartmentCode UK
+        NVARCHAR(100) DepartmentName UK
+        DECIMAL(12,2) Budget
+        NVARCHAR(50) OfficeLocation
+        DATE EstablishedDate
+        INT HeadOfDepartmentID FK
     }
 
     Instructors {
@@ -70,12 +70,13 @@ erDiagram
         VARCHAR(15) InstructorNumber UK
         NVARCHAR(50) FirstName
         NVARCHAR(50) LastName
-        VARCHAR(100) Email UK
+        NVARCHAR(100) Email UK
+        VARCHAR(20) Phone
         DATE HireDate
-        DECIMAL(10_2) Salary
-        VARCHAR(30) Title
+        NVARCHAR(30) OfficeRoom
+        NVARCHAR(30) Title
+        DECIMAL(10,2) Salary
         BIT IsActive
-        DATETIME2 CreatedAt
     }
 
     Students {
@@ -84,24 +85,22 @@ erDiagram
         VARCHAR(15) StudentNumber UK
         NVARCHAR(50) FirstName
         NVARCHAR(50) LastName
-        VARCHAR(100) Email UK
-        VARCHAR(20) Phone
+        NVARCHAR(100) Email UK
         DATE DateOfBirth
         DATE EnrollmentDate
-        VARCHAR(20) AcademicStatus
+        NVARCHAR(20) AcademicStatus
         DATETIME2 CreatedAt
     }
 
     AcademicTerms {
         INT TermID PK
         VARCHAR(15) TermCode UK
-        VARCHAR(50) TermName
+        NVARCHAR(50) TermName
         DATE StartDate
         DATE EndDate
         DATE RegistrationOpenDate
         DATE RegistrationCloseDate
         BIT IsActive
-        DATETIME2 CreatedAt
     }
 
     Courses {
@@ -109,17 +108,14 @@ erDiagram
         INT DepartmentID FK
         VARCHAR(10) CourseCode UK
         NVARCHAR(100) Title
-        TINYINT Credits
         NVARCHAR(500) Description
-        BIT IsActive
-        DATETIME2 CreatedAt
+        TINYINT Credits
     }
 
     CoursePrerequisites {
-        INT CourseID PK_FK
-        INT PrerequisiteCourseID PK_FK
-        VARCHAR(3) MinimumGrade FK
-        DATETIME2 CreatedAt
+        INT CourseID PK, FK
+        INT PrerequisiteCourseID PK, FK
+        CHAR(2) MinimumGrade FK
     }
 
     CourseSections {
@@ -127,24 +123,19 @@ erDiagram
         INT CourseID FK
         INT TermID FK
         INT InstructorID FK
-        VARCHAR(10) SectionNumber
+        VARCHAR(5) SectionNumber
         INT MaxCapacity
-        VARCHAR(50) Classroom
-        VARCHAR(50) ScheduleDayTime
-        VARCHAR(20) Status
-        DATETIME2 CreatedAt
+        NVARCHAR(30) Classroom
+        NVARCHAR(50) ScheduleDayTime
+        NVARCHAR(20) Status
     }
 
     GradeScales {
-        INT GradeScaleID PK
-        VARCHAR(3) LetterGrade UK
-        DECIMAL(5_2) MinPercentage
-        DECIMAL(5_2) MaxPercentage
-        DECIMAL(3_2) GradePoints
-        BIT IsPassing
+        CHAR(2) LetterGrade PK
+        DECIMAL(3,2) GradePoints
         BIT IsCreditBearing
         BIT IsIncludedInGPA
-        DATETIME2 CreatedAt
+        NVARCHAR(50) Description
     }
 
     Enrollments {
@@ -152,10 +143,9 @@ erDiagram
         INT StudentID FK
         INT SectionID FK
         DATETIME2 EnrollmentDate
-        VARCHAR(20) EnrollmentStatus
-        VARCHAR(3) LetterGrade FK
-        DECIMAL(5_2) FinalGradePercentage
-        DATETIME2 CreatedAt
+        NVARCHAR(20) EnrollmentStatus
+        CHAR(2) LetterGrade FK
+        NVARCHAR(250) Notes
     }
 
     EnrollmentAuditLog {
@@ -163,18 +153,20 @@ erDiagram
         INT EnrollmentID
         INT StudentID
         INT SectionID
-        VARCHAR(20) ActionType
-        VARCHAR(20) PreviousStatus
-        VARCHAR(20) NewStatus
+        VARCHAR(25) ActionType
+        NVARCHAR(20) PreviousStatus
+        NVARCHAR(20) NewStatus
+        CHAR(2) PreviousGrade
+        CHAR(2) NewGrade
         NVARCHAR(128) ChangedBy
         DATETIME2 ChangedAt
-        NVARCHAR(255) ChangeReason
+        NVARCHAR(500) Details
     }
 ```
 
 ### 3.2 Schema Invariants & Design Decisions
 1. **Prerequisite Grade Comparison**: Prerequisite evaluation compares numeric `GradePoints` (e.g., `2.00` for `'C'`), preventing invalid alphabetical comparisons where `'B'` would incorrectly compare after `'A'`. Direct self-prerequisite loops (`CourseID = PrerequisiteCourseID`) are blocked by check constraints.
-2. **Nullable Head of Department**: The circular foreign key relationship between `Departments` and `Instructors` is resolved by allowing `Departments.HeadInstructorID` to be nullable, enabling clean initial seeding without foreign key disabling.
+2. **Nullable Head of Department**: The circular foreign key relationship between `Departments` and `Instructors` is resolved by allowing `Departments.HeadOfDepartmentID` to be nullable, enabling clean initial seeding without foreign key disabling.
 3. **Audit Log Persistence**: `audit.EnrollmentAuditLog` retains `StudentID` and `SectionID` as standalone integers rather than cascading deletes, ensuring audit trails remain intact even if an enrollment record is removed.
 
 ---
