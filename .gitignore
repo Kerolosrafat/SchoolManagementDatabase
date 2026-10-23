@@ -1,0 +1,30 @@
+# SQL Server database and backup files
+*.mdf
+*.ldf
+*.ndf
+*.bak
+*.trn
+
+# SSMS & Visual Studio IDE artifacts
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Logs and temporary files
+*.log
+*.tmp
+temp/
+scratch/
+
+# Local configurations & secrets
+*.local.sql
+.env
+.env.*
+!*.example
+
+# Operating System files
+Thumbs.db
+Desktop.ini
+.DS_Store
